@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { fetchFeed, toggleLike, toggleSave, deletePost, type FeedPost } from "@/lib/feed";
 import PostCard from "@/components/PostCard";
 import StoryViewer, { type StoryItem } from "@/components/StoryViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useInView } from "react-intersection-observer";
 
 async function fetchStories(): Promise<StoryItem[]> {
   const { data: rows, error } = await supabase
@@ -38,43 +39,86 @@ export default function Feed() {
   const { t } = useI18n();
   const [tab, setTab] = useState<"forYou" | "following">("forYou");
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const { ref, inView } = useInView();
 
-  const feedQ = useQuery({
+  const feedQ = useInfiniteQuery({
     queryKey: ["feed", tab, user?.id],
-    queryFn: () => fetchFeed(user!.id, { reels: false, following: tab === "following" }),
+    queryFn: ({ pageParam }) => fetchFeed(user!.id, { 
+      reels: false, 
+      following: tab === "following",
+      before: pageParam as string | undefined
+    }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.length > 0 ? lastPage[lastPage.length - 1].created_at : undefined,
     enabled: !!user,
   });
+
+  useEffect(() => {
+    if (inView && feedQ.hasNextPage && !feedQ.isFetchingNextPage) {
+      feedQ.fetchNextPage();
+    }
+  }, [inView, feedQ]);
 
   const storiesQ = useQuery({ queryKey: ["stories"], queryFn: fetchStories });
   const stories = storiesQ.data ?? [];
 
-  const posts = feedQ.data ?? [];
-
-  function patch(id: string, fn: (p: FeedPost) => FeedPost) {
-    qc.setQueryData<FeedPost[]>(["feed", tab, user?.id], (old) => old?.map((p) => (p.id === id ? fn(p) : p)));
-  }
+  const posts = feedQ.data?.pages.flat() ?? [];
 
   async function onLike(p: FeedPost) {
     if (!user) return;
     const next = !p.liked;
-    patch(p.id, (x) => ({ ...x, liked: next, like_count: x.like_count + (next ? 1 : -1) }));
-    try { await toggleLike(p.id, user.id, next); }
-    catch { patch(p.id, (x) => ({ ...x, liked: !next, like_count: x.like_count + (next ? -1 : 1) })); toast.error("تعذّر التحديث"); }
+    
+    // Optimistic Update
+    qc.setQueryData(["feed", tab, user.id], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: FeedPost[]) => 
+          page.map((item) => item.id === p.id 
+            ? { ...item, liked: next, like_count: item.like_count + (next ? 1 : -1) } 
+            : item
+          )
+        )
+      };
+    });
+
+    try { 
+      await toggleLike(p.id, user.id, next); 
+    } catch { 
+      // Revert on error
+      qc.invalidateQueries({ queryKey: ["feed", tab, user.id] });
+      toast.error("تعذّر التحديث"); 
+    }
   }
 
   async function onSave(p: FeedPost) {
     if (!user) return;
     const next = !p.saved;
-    patch(p.id, (x) => ({ ...x, saved: next }));
-    try { await toggleSave(p.id, user.id, next); if (next) toast.success("تم الحفظ"); }
-    catch { patch(p.id, (x) => ({ ...x, saved: !next })); toast.error("تعذّر الحفظ"); }
+    
+    qc.setQueryData(["feed", tab, user.id], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: FeedPost[]) => 
+          page.map((item) => item.id === p.id ? { ...item, saved: next } : item)
+        )
+      };
+    });
+
+    try { 
+      await toggleSave(p.id, user.id, next); 
+      if (next) toast.success("تم الحفظ"); 
+    } catch { 
+      qc.invalidateQueries({ queryKey: ["feed", tab, user.id] });
+      toast.error("تعذّر الحفظ"); 
+    }
   }
 
   async function onDelete(p: FeedPost) {
     if (!confirm("حذف هذا المنشور؟")) return;
     try {
       await deletePost(p.id);
-      qc.setQueryData<FeedPost[]>(["feed", tab, user?.id], (old) => old?.filter((x) => x.id !== p.id));
+      qc.invalidateQueries({ queryKey: ["feed", tab, user.id] });
       toast.success("تم الحذف");
     } catch (e: any) { toast.error(e?.message || "تعذّر الحذف"); }
   }
@@ -152,6 +196,17 @@ export default function Feed() {
           onDelete={() => onDelete(p)}
         />
       ))}
+
+      {/* Infinite Scroll Loader */}
+      <div ref={ref} className="py-10 flex justify-center">
+        {feedQ.isFetchingNextPage ? (
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        ) : feedQ.hasNextPage ? (
+          <div className="h-10" />
+        ) : posts.length > 0 ? (
+          <p className="text-xs text-muted-foreground">{t("no_more_posts") || "وصلت للنهاية"}</p>
+        ) : null}
+      </div>
 
       {viewerIndex !== null && stories.length > 0 && (
         <StoryViewer

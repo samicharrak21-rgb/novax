@@ -52,7 +52,7 @@ type RawPost = {
 
 export async function fetchFeed(
   currentUserId: string,
-  opts: { reels?: boolean; userId?: string; following?: boolean; hashtag?: string } = {},
+  opts: { reels?: boolean; userId?: string; following?: boolean; hashtag?: string; before?: string } = {},
 ): Promise<FeedPost[]> {
   let query = supabase
     .from("posts")
@@ -60,11 +60,12 @@ export async function fetchFeed(
       "id,user_id,caption,image_url,video_url,is_reel,created_at,post_type,parent_post_id,hashtags,views_count,author:profiles!posts_user_id_fkey(id,username,display_name,avatar_url,verified)",
     )
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(15);
 
   if (opts.reels !== undefined) query = query.eq("is_reel", opts.reels);
   if (opts.userId) query = query.eq("user_id", opts.userId);
   if (opts.hashtag) query = query.contains("hashtags", [opts.hashtag.toLowerCase()]);
+  if (opts.before) query = query.lt("created_at", opts.before);
 
   if (opts.following) {
     const { data: follows } = await supabase

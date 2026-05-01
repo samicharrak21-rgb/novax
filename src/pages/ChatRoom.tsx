@@ -178,10 +178,29 @@ export default function ChatRoom() {
     const content = text.trim();
     if (!content || isSending) return;
     
+    // Optimistic UI Update
+    const tempId = crypto.randomUUID();
+    const optimisticMsg: Message = {
+      id: tempId,
+      sender_id: user!.id,
+      content,
+      attachment_url: null,
+      attachment_type: null,
+      created_at: new Date().toISOString(),
+    };
+
+    qc.setQueryData(["messages", id], (old: Message[] | undefined) => {
+      if (!old) return [optimisticMsg];
+      return [...old, optimisticMsg];
+    });
+
     setText("");
     const ok = await sendMessage({ content });
     if (!ok) {
-      // Restore text if it failed
+      // Remove optimistic message and restore text on failure
+      qc.setQueryData(["messages", id], (old: Message[] | undefined) => {
+        return old?.filter(m => m.id !== tempId);
+      });
       setText(content);
     }
   }
