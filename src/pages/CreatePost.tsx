@@ -59,8 +59,8 @@ export default function CreatePost() {
   }
 
   return (
-    <div className="pb-20">
-      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4 mb-4">
+    <div className="flex flex-col min-h-full">
+      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4 mb-4 shrink-0">
         <h1 className="text-xl font-black">منشور جديد</h1>
       </header>
 

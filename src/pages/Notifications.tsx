@@ -74,8 +74,8 @@ export default function Notifications() {
   };
 
   return (
-    <div className="pb-20">
-      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4">
+    <div className="flex flex-col min-h-full">
+      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4 shrink-0">
         <h1 className="text-xl font-black">{t("notifications")}</h1>
       </header>
       {q.isLoading && <p className="text-center py-10 text-muted-foreground text-sm">{t("loading")}</p>}

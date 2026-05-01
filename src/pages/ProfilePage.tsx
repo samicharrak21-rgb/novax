@@ -111,18 +111,17 @@ export default function ProfilePage() {
       // 3. Create a new conversation if none exists
       if (!convId) {
         // We use a transaction-like approach by inserting conversation first
-        // If it fails, RLS or DB constraints will catch it
-        const { data: newConv, error: cErr } = await supabase
+        const { data: newConvs, error: cErr } = await supabase
           .from("conversations")
           .insert({
             is_group: false,
             created_by: user.id
           })
-          .select()
-          .single();
+          .select();
         
         if (cErr) throw cErr;
-        const newConvId = newConv.id;
+        if (!newConvs || newConvs.length === 0) throw new Error("Failed to create conversation");
+        const newConvId = newConvs[0].id;
 
         // Insert participants (self and the profile owner)
         const { error: pErr } = await supabase
@@ -132,11 +131,7 @@ export default function ProfilePage() {
             { conversation_id: newConvId, user_id: profile.id },
           ]);
         
-        if (pErr) {
-          // If adding participants fails, the conversation might be "orphaned"
-          // but RLS should ideally handle visibility.
-          throw pErr;
-        }
+        if (pErr) throw pErr;
         convId = newConvId;
       }
 

@@ -16,8 +16,8 @@ export default function Settings() {
   const isAdmin = (user?.email || "").toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   return (
-    <div className="pb-24 lg:pb-8 mx-auto">
-      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4 gap-2">
+    <div className="flex flex-col min-h-full mx-auto">
+      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4 gap-2 shrink-0">
         <button onClick={() => navigate(-1)} aria-label="back" className="p-2 rounded-full hover:bg-secondary transition-colors">
           <Back className="h-5 w-5" />
         </button>

@@ -56,18 +56,19 @@ export default function NewGroup() {
     setSubmitting(true);
     try {
       // 1. Create the conversation first and get the generated ID
-      const { data: conv, error: cErr } = await supabase
+      // We don't use .single() directly here to avoid issues if SELECT policy takes a moment to propagate
+      const { data: convs, error: cErr } = await supabase
         .from("conversations")
         .insert({ 
           is_group: true, 
           title: title.trim(), 
           created_by: user.id 
         })
-        .select()
-        .single();
+        .select();
 
       if (cErr) throw cErr;
-      const convId = conv.id;
+      if (!convs || convs.length === 0) throw new Error("Failed to create conversation entry");
+      const convId = convs[0].id;
       
       // 2. Prepare participants rows (ensure unique user IDs)
       const participantIds = Array.from(new Set([user.id, ...ids]));
@@ -90,8 +91,8 @@ export default function NewGroup() {
       console.error("Group creation error:", e);
       toast.error(
         dir === "rtl" 
-          ? `فشل إنشاء المجموعة: ${e.message || "خطأ غير معروف"}` 
-          : `Failed to create group: ${e.message || "Unknown error"}`
+          ? `فشل إنشاء المجموعة: ${e.message || "تأكد من اتصالك بالإنترنت"}` 
+          : `Failed to create group: ${e.message || "Check your connection"}`
       );
     } finally {
       setSubmitting(false);
@@ -101,8 +102,8 @@ export default function NewGroup() {
   const selectedList = Object.values(selected);
 
   return (
-    <div className="pb-20">
-      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-3 gap-2">
+      <div className="flex flex-col min-h-full">
+        <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-3 gap-2 shrink-0">
         <button onClick={() => navigate(-1)} aria-label="back" className="p-1.5 rounded-full hover:bg-secondary">
           <Back className="h-5 w-5" />
         </button>

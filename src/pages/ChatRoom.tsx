@@ -216,7 +216,7 @@ export default function ChatRoom() {
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] lg:h-screen">
       {/* Chat header */}
-      <header className="sticky top-14 lg:top-0 z-30 border-b border-border h-14 flex items-center px-2 gap-2 bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-border h-14 flex items-center px-2 gap-2 bg-background/80 backdrop-blur-md shrink-0">
         <button onClick={() => navigate("/chats")} aria-label="back" className="p-1.5 rounded-full hover:bg-secondary">
           <Back className="h-5 w-5" />
         </button>
