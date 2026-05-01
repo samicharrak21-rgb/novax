@@ -123,13 +123,21 @@ export default function ChatRoom() {
     
     setIsSending(true);
     try {
-      const { error } = await supabase.from("messages").insert(row);
+      const { data, error } = await supabase.from("messages").insert(row).select();
       if (error) {
-        console.error("Send error:", error);
-        toast.error(dir === "rtl" ? "فشل إرسال الرسالة" : "Failed to send message");
+        console.error("Detailed Send error:", error);
+        toast.error(
+          dir === "rtl" 
+            ? `فشل إرسال الرسالة: ${error.message}` 
+            : `Failed to send message: ${error.message}`
+        );
         return false;
       }
+      console.log("Message sent successfully:", data);
       return true;
+    } catch (err: any) {
+      console.error("Unexpected send error:", err);
+      return false;
     } finally {
       setIsSending(false);
     }
