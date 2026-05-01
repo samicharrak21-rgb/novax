@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Nova X — Dark X theme. All colors HSL. */
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 210 20% 98%;
+
+    --card: 0 0% 0%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 0 0% 4%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 203 89% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 203 89% 65%;
+
+    --secondary: 215 14% 10%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 215 14% 10%;
+    --muted-foreground: 217 10% 64%;
+
+    --accent: 215 14% 14%;
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 14% 14%;
+    --input: 215 14% 14%;
+    --ring: 203 89% 53%;
+
+    --ig-red: 0 84% 60%;
+    --story-pink: 340 82% 52%;
+    --story-orange: 38 92% 50%;
+    --story-purple: 280 65% 60%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 203 89% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 14% 14%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 215 14% 14%;
+    --sidebar-ring: 203 89% 53%;
+
+    --gradient-brand: linear-gradient(135deg, hsl(203 89% 53%) 0%, hsl(280 65% 60%) 50%, hsl(340 82% 52%) 100%);
+    --gradient-story: conic-gradient(from 0deg, hsl(280 65% 60%), hsl(340 82% 52%), hsl(38 92% 50%), hsl(203 89% 53%), hsl(280 65% 60%));
+    --shadow-glow: 0 8px 30px -8px hsl(203 89% 53% / 0.5);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Cairo', 'Inter', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: 0.6; }
+}
+
+@layer utilities {
+  .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .brand-x {
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    color: hsl(var(--foreground));
+    line-height: 1;
+  }
+
+  .gradient-brand { background: var(--gradient-brand); }
+  .text-gradient-brand {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-ig-red { color: hsl(var(--ig-red)); }
+  .fill-ig-red { fill: hsl(var(--ig-red)); }
+
+  .story-ring {
+    background: var(--gradient-story);
+    padding: 2px;
+    border-radius: 9999px;
+  }
+
+  .glass {
+    background: hsl(var(--background) / 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+
+  @keyframes heart-burst {
+    0%   { transform: scale(0.4); opacity: 0; }
+    25%  { transform: scale(1.25); opacity: 1; }
+    50%  { transform: scale(0.95); opacity: 1; }
+    100% { transform: scale(1.0); opacity: 0; }
+  }
+  .heart-burst { animation: heart-burst 0.95s ease-out forwards; }
+
+  @keyframes pulse-record {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.18); opacity: 0.6; }
+  }
+  .pulse-record { animation: pulse-record 1s ease-in-out infinite; }
+
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in-up { animation: fade-in-up 0.3s ease-out both; }
+
+  .chat-bubble-me { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+  .chat-bubble-them { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
+}
