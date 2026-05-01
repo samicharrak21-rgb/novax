@@ -86,7 +86,13 @@ export default function ChatRoom() {
   });
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !user) return;
+    
+    // Mark as read when entering or when new messages arrive
+    supabase.rpc("mark_conversation_read", { conv_id: id }).then(() => {
+      qc.invalidateQueries({ queryKey: ["conversation_participants", user.id] });
+    });
+
     // Use Realtime channel with high priority
     const channel = supabase
       .channel(`messages:${id}`, {
@@ -112,6 +118,10 @@ export default function ChatRoom() {
             if (old.find((m) => m.id === payload.new.id)) return old;
             return [...old, payload.new as Message];
           });
+          
+          // Mark as read if user is in this room
+          supabase.rpc("mark_conversation_read", { conv_id: id });
+          
           // Also invalidate to keep in sync with server
           qc.invalidateQueries({ queryKey: ["messages", id] });
         }
@@ -123,7 +133,7 @@ export default function ChatRoom() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id, qc]);
+  }, [id, qc, user]);
 
   useEffect(() => {
     if (q.data) {

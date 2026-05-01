@@ -15,6 +15,7 @@ type ChatItem = {
   last: string | null;
   other: { username: string; display_name: string | null; avatar_url: string | null } | null;
   others_count: number;
+  unread_count: number;
 };
 
 export default function ChatList() {
@@ -25,10 +26,12 @@ export default function ChatList() {
     queryFn: async (): Promise<ChatItem[]> => {
       const { data: parts } = await supabase
         .from("conversation_participants")
-        .select("conversation_id, conversations(id,last_message_at,is_group,title,avatar_url)")
+        .select("conversation_id, last_read_at, conversations(id,last_message_at,is_group,title,avatar_url)")
         .eq("user_id", user!.id);
+      
       const convIds = (parts ?? []).map((p: any) => p.conversation_id);
       if (convIds.length === 0) return [];
+      
       const { data: others } = await supabase
         .from("conversation_participants")
         .select("conversation_id, profiles:profiles!conversation_participants_user_id_fkey(id,username,display_name,avatar_url)")
@@ -36,16 +39,30 @@ export default function ChatList() {
         .neq("user_id", user!.id);
 
       const convMeta: Record<string, any> = {};
-      (parts ?? []).forEach((p: any) => { convMeta[p.conversation_id] = p.conversations; });
+      const lastRead: Record<string, string> = {};
+      (parts ?? []).forEach((p: any) => { 
+        convMeta[p.conversation_id] = p.conversations;
+        lastRead[p.conversation_id] = p.last_read_at;
+      });
 
       const byConv: Record<string, any[]> = {};
       (others ?? []).forEach((o: any) => {
         (byConv[o.conversation_id] ||= []).push(o.profiles);
       });
 
-      return convIds.map((cid) => {
+      const results = await Promise.all(convIds.map(async (cid) => {
         const meta = convMeta[cid] || {};
         const list = byConv[cid] || [];
+        const lr = lastRead[cid];
+        
+        // Count unread messages for this specific conversation
+        const { count } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .eq("conversation_id", cid)
+          .gt("created_at", lr)
+          .neq("sender_id", user!.id);
+
         return {
           id: cid,
           is_group: !!meta.is_group,
@@ -54,8 +71,11 @@ export default function ChatList() {
           last: meta.last_message_at ?? null,
           other: list[0] || null,
           others_count: list.length,
+          unread_count: count || 0,
         };
-      }).sort((a, b) => (b.last || "").localeCompare(a.last || ""));
+      }));
+
+      return results.sort((a, b) => (b.last || "").localeCompare(a.last || ""));
     },
     enabled: !!user,
   });
@@ -98,11 +118,23 @@ export default function ChatList() {
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm truncate flex items-center gap-1.5">
                 {name}
+                {c.unread_count > 0 && (
+                  <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                )}
                 {c.is_group && <span className="text-[10px] text-muted-foreground font-normal">· {t("members")}</span>}
               </div>
-              <div className="text-xs text-muted-foreground truncate">{sub}</div>
+              <div className={`text-xs truncate ${c.unread_count > 0 ? "text-foreground font-bold" : "text-muted-foreground"}`}>
+                {sub}
+              </div>
             </div>
-            {c.last && <span className="text-xs text-muted-foreground">{timeAgo(c.last)}</span>}
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {c.last && <span className="text-[10px] text-muted-foreground">{timeAgo(c.last)}</span>}
+              {c.unread_count > 0 && (
+                <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                  {c.unread_count > 9 ? "9+" : c.unread_count}
+                </span>
+              )}
+            </div>
           </Link>
         );
       })}
