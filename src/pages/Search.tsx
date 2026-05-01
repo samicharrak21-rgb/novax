@@ -21,8 +21,12 @@ export default function Search() {
   });
 
   return (
-    <div className="p-4 space-y-3">
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن مستخدم…" className="h-12 rounded-full" />
+    <div className="pb-20">
+      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4 mb-3">
+        <h1 className="text-xl font-black">البحث</h1>
+      </header>
+      <div className="px-4 space-y-3">
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث عن مستخدم…" className="h-12 rounded-full" />
       {search.data?.map((u: any) => (
         <Link key={u.id} to={`/u/${u.username}`} className="flex items-center gap-3 p-2 rounded-xl hover:bg-secondary">
           <Avatar><AvatarImage src={u.avatar_url ?? undefined} /><AvatarFallback className="gradient-brand text-primary-foreground">{u.username[0]?.toUpperCase()}</AvatarFallback></Avatar>

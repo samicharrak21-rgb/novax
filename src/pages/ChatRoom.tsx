@@ -107,6 +107,13 @@ export default function ChatRoom() {
   async function sendMessage(payload: { content?: string; attachment_url?: string; attachment_type?: string }) {
     if (!user || !id) return false;
     
+    // Simple UUID validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      toast.error(dir === "rtl" ? "معرف المحادثة غير صالح" : "Invalid conversation ID");
+      return false;
+    }
+
     const row: any = { conversation_id: id, sender_id: user.id };
     if (payload.content) row.content = payload.content;
     if (payload.attachment_url) {
@@ -207,9 +214,9 @@ export default function ChatRoom() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+    <div className="flex flex-col h-[calc(100vh-3.5rem)] lg:h-screen">
       {/* Chat header */}
-      <header className="border-b border-border h-14 flex items-center px-2 gap-2 bg-background">
+      <header className="sticky top-14 lg:top-0 z-30 border-b border-border h-14 flex items-center px-2 gap-2 bg-background/80 backdrop-blur-md">
         <button onClick={() => navigate("/chats")} aria-label="back" className="p-1.5 rounded-full hover:bg-secondary">
           <Back className="h-5 w-5" />
         </button>

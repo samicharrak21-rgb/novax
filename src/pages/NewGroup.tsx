@@ -55,27 +55,44 @@ export default function NewGroup() {
     if (!title.trim()) { toast.error(t("group_name")); return; }
     setSubmitting(true);
     try {
-      const convId = crypto.randomUUID();
-      const { error: cErr } = await supabase
+      // 1. Create the conversation first and get the generated ID
+      const { data: conv, error: cErr } = await supabase
         .from("conversations")
-        .insert({ id: convId, is_group: true, title: title.trim(), created_by: user.id });
-      
+        .insert({ 
+          is_group: true, 
+          title: title.trim(), 
+          created_by: user.id 
+        })
+        .select()
+        .single();
+
       if (cErr) throw cErr;
+      const convId = conv.id;
       
-      const rows = [user.id, ...ids].map((uid) => ({ conversation_id: convId, user_id: uid }));
+      // 2. Prepare participants rows (ensure unique user IDs)
+      const participantIds = Array.from(new Set([user.id, ...ids]));
+      const rows = participantIds.map((uid) => ({ 
+        conversation_id: convId, 
+        user_id: uid 
+      }));
+
+      // 3. Insert participants
       const { error: pErr } = await supabase.from("conversation_participants").insert(rows);
       
       if (pErr) {
-        // If participants fail, we might want to cleanup or at least warn
         console.error("Participants error:", pErr);
         throw pErr;
       }
       
       toast.success(dir === "rtl" ? "تم إنشاء المجموعة بنجاح" : "Group created successfully");
-      navigate(`/chats/${convId}`);
+      navigate(`/chats/${convId}`, { replace: true });
     } catch (e: any) {
       console.error("Group creation error:", e);
-      toast.error(dir === "rtl" ? "فشل إنشاء المجموعة" : "Failed to create group");
+      toast.error(
+        dir === "rtl" 
+          ? `فشل إنشاء المجموعة: ${e.message || "خطأ غير معروف"}` 
+          : `Failed to create group: ${e.message || "Unknown error"}`
+      );
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +102,7 @@ export default function NewGroup() {
 
   return (
     <div className="pb-20">
-      <header className="sticky top-14 z-30 glass border-b border-border h-12 flex items-center px-3 gap-2">
+      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-3 gap-2">
         <button onClick={() => navigate(-1)} aria-label="back" className="p-1.5 rounded-full hover:bg-secondary">
           <Back className="h-5 w-5" />
         </button>

@@ -63,8 +63,8 @@ export default function ChatList() {
   const items = q.data ?? [];
 
   return (
-    <div>
-      <header className="flex items-center justify-between p-4">
+    <div className="pb-20">
+      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center justify-between px-4">
         <h1 className="text-xl font-black">{t("chats")}</h1>
         <div className="flex gap-1">
           <Link to="/chats/new-group" className="p-2 rounded-full hover:bg-secondary" aria-label={t("new_group")}>

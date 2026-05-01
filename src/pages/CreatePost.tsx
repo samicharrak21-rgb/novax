@@ -59,10 +59,12 @@ export default function CreatePost() {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-xl font-black">منشور جديد</h1>
+    <div className="pb-20">
+      <header className="sticky top-14 lg:top-0 z-30 glass border-b border-border h-14 flex items-center px-4 mb-4">
+        <h1 className="text-xl font-black">منشور جديد</h1>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="px-4 space-y-4">
         {previewUrl ? (
           <div className="relative rounded-2xl overflow-hidden bg-secondary">
             {file?.type.startsWith("video/") ? (
