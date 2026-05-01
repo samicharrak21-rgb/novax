@@ -87,12 +87,42 @@ export default function ChatRoom() {
 
   useEffect(() => {
     if (!id) return;
+    // Use Realtime channel with high priority
     const channel = supabase
-      .channel(`messages:${id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` },
-        () => qc.invalidateQueries({ queryKey: ["messages", id] }))
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      .channel(`messages:${id}`, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: id },
+        },
+      })
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${id}`,
+        },
+        (payload) => {
+          console.log("New message received via realtime:", payload);
+          // Directly update the cache to show message instantly
+          qc.setQueryData(["messages", id], (old: Message[] | undefined) => {
+            if (!old) return [payload.new as Message];
+            // Check if message already exists to avoid duplicates
+            if (old.find((m) => m.id === payload.new.id)) return old;
+            return [...old, payload.new as Message];
+          });
+          // Also invalidate to keep in sync with server
+          qc.invalidateQueries({ queryKey: ["messages", id] });
+        }
+      )
+      .subscribe((status) => {
+        console.log(`Realtime status for ${id}:`, status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id, qc]);
 
   useEffect(() => {
@@ -273,7 +303,7 @@ export default function ChatRoom() {
                   {m.content && <div className="text-sm px-2 py-1.5">{m.content}</div>}
                 </div>
               ) : (
-                <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words ${me ? "chat-bubble-me" : "chat-bubble-them"}`}>
+                <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap break-words overflow-hidden ${me ? "chat-bubble-me" : "chat-bubble-them"}`}>
                   {m.content}
                 </div>
               )}
