@@ -39,6 +39,7 @@ export default function Search() {
       {q.length >= 2 && search.data?.length === 0 && !search.isLoading && (
         <p className="text-center text-sm text-muted-foreground py-6">لا نتائج</p>
       )}
+      </div>
     </div>
   );
 }
