@@ -131,16 +131,64 @@ export default function StoryViewer({
     if (!user || !story || !reply.trim() || sending || isOwner) return;
     setSending(true);
     try {
-      const { error } = await supabase.from("story_messages").insert({
+      // 1. Find or create a 1-on-1 conversation with the story owner
+      const { data: userConvs } = await supabase
+        .from("conversation_participants")
+        .select("conversation_id, conversations!inner(is_group)")
+        .eq("user_id", user.id);
+
+      const my1on1ConvIds = (userConvs ?? [])
+        .filter((r: any) => r.conversations && !r.conversations.is_group)
+        .map((r: any) => r.conversation_id);
+
+      let convId: string | null = null;
+      if (my1on1ConvIds.length > 0) {
+        const { data: shared } = await supabase
+          .from("conversation_participants")
+          .select("conversation_id")
+          .eq("user_id", story.user_id)
+          .in("conversation_id", my1on1ConvIds)
+          .limit(1);
+        convId = (shared ?? [])[0]?.conversation_id ?? null;
+      }
+
+      if (!convId) {
+        const newConvId = crypto.randomUUID();
+        await supabase.from("conversations").insert({
+          id: newConvId,
+          is_group: false,
+          created_by: user.id
+        });
+        await supabase.from("conversation_participants").insert([
+          { conversation_id: newConvId, user_id: user.id },
+          { conversation_id: newConvId, user_id: story.user_id },
+        ]);
+        convId = newConvId;
+      }
+
+      // 2. Send the message to the conversation
+      const { error } = await supabase.from("messages").insert({
+        conversation_id: convId,
+        sender_id: user.id,
+        content: `رداً على قصتك: ${reply.trim()}`,
+        attachment_url: story.image_url,
+        attachment_type: "image"
+      });
+
+      if (error) throw error;
+
+      // 3. (Optional) Record in story_messages for analytics
+      await supabase.from("story_messages").insert({
         story_id: story.id,
         sender_id: user.id,
         content: reply.trim(),
       });
-      if (error) throw error;
+
       setReply("");
-      toast.success("تم إرسال الرسالة");
+      toast.success("تم إرسال الرد بنجاح");
     } catch (e: any) {
-      toast.error(e?.message || "تعذّر الإرسال");
+      console.error("Story reply error:", e);
+      toast.error(e?.message || "تعذّر إرسال الرد");
     } finally {
       setSending(false);
     }
