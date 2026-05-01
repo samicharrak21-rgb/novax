@@ -110,18 +110,18 @@ export default function ProfilePage() {
 
       // 3. Create a new conversation if none exists
       if (!convId) {
-        // We use a transaction-like approach by inserting conversation first
-        const { data: newConvs, error: cErr } = await supabase
+        // Generate ID manually to avoid .select() race conditions
+        const newConvId = crypto.randomUUID();
+
+        const { error: cErr } = await supabase
           .from("conversations")
           .insert({
+            id: newConvId,
             is_group: false,
             created_by: user.id
-          })
-          .select();
+          });
         
         if (cErr) throw cErr;
-        if (!newConvs || newConvs.length === 0) throw new Error("Failed to create conversation");
-        const newConvId = newConvs[0].id;
 
         // Insert participants (self and the profile owner)
         const { error: pErr } = await supabase

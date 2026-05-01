@@ -55,25 +55,24 @@ export default function NewGroup() {
     if (!title.trim()) { toast.error(t("group_name")); return; }
     setSubmitting(true);
     try {
-      // 1. Create the conversation first and get the generated ID
-      // We don't use .single() directly here to avoid issues if SELECT policy takes a moment to propagate
-      const { data: convs, error: cErr } = await supabase
+      // 1. Generate ID manually to avoid .select() RLS race conditions
+      const newConvId = crypto.randomUUID();
+
+      const { error: cErr } = await supabase
         .from("conversations")
         .insert({ 
+          id: newConvId,
           is_group: true, 
           title: title.trim(), 
           created_by: user.id 
-        })
-        .select();
+        });
 
       if (cErr) throw cErr;
-      if (!convs || convs.length === 0) throw new Error("Failed to create conversation entry");
-      const convId = convs[0].id;
       
       // 2. Prepare participants rows (ensure unique user IDs)
       const participantIds = Array.from(new Set([user.id, ...ids]));
       const rows = participantIds.map((uid) => ({ 
-        conversation_id: convId, 
+        conversation_id: newConvId, 
         user_id: uid 
       }));
 
@@ -86,13 +85,13 @@ export default function NewGroup() {
       }
       
       toast.success(dir === "rtl" ? "تم إنشاء المجموعة بنجاح" : "Group created successfully");
-      navigate(`/chats/${convId}`, { replace: true });
+      navigate(`/chats/${newConvId}`, { replace: true });
     } catch (e: any) {
       console.error("Group creation error:", e);
       toast.error(
         dir === "rtl" 
-          ? `فشل إنشاء المجموعة: ${e.message || "تأكد من اتصالك بالإنترنت"}` 
-          : `Failed to create group: ${e.message || "Check your connection"}`
+          ? `فشل إنشاء المجموعة: ${e.message || "يرجى التحقق من صلاحيات قاعدة البيانات"}` 
+          : `Failed to create group: ${e.message || "Please check database permissions"}`
       );
     } finally {
       setSubmitting(false);
