@@ -42,7 +42,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     { to: "/search", icon: Search, label: t("search") },
     { to: "/create", icon: PlusSquare, label: t("create"), primary: true },
     { to: "/reels", icon: Film, label: t("reels") },
-    { to: "/chats", icon: MessageCircle, label: t("chats") },
+    { to: "/settings", icon: Settings, label: t("settings") },
   ] as const;
 
   return (

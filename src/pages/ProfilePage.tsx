@@ -81,42 +81,51 @@ export default function ProfilePage() {
     if (!user || !profile || isMe || opening) return;
     setOpening(true);
     try {
-      // 1. Find an existing 1-on-1 conversation between the two users.
-      const { data: mine } = await supabase
+      // 1. Get all 1-on-1 conversations the current user is part of
+      const { data: userConvs, error: userConvsErr } = await supabase
         .from("conversation_participants")
         .select("conversation_id, conversations!inner(is_group)")
         .eq("user_id", user.id);
 
-      const myConvIds = (mine ?? [])
+      if (userConvsErr) throw userConvsErr;
+
+      const my1on1ConvIds = (userConvs ?? [])
         .filter((r: any) => r.conversations && !r.conversations.is_group)
         .map((r: any) => r.conversation_id);
 
       let convId: string | null = null;
-      if (myConvIds.length > 0) {
-        const { data: shared } = await supabase
+
+      // 2. Check if the profile user is in any of these 1-on-1 conversations
+      if (my1on1ConvIds.length > 0) {
+        const { data: shared, error: sharedErr } = await supabase
           .from("conversation_participants")
           .select("conversation_id")
           .eq("user_id", profile.id)
-          .in("conversation_id", myConvIds)
-          .limit(1);
-        convId = (shared ?? [])[0]?.conversation_id ?? null;
+          .in("conversation_id", my1on1ConvIds)
+          .limit(1)
+          .maybeSingle();
+        
+        if (sharedErr) throw sharedErr;
+        convId = shared?.conversation_id ?? null;
       }
 
-      // 2. If no conversation exists, create a new one.
+      // 3. Create a new conversation if none exists
       if (!convId) {
-        const newConvId = crypto.randomUUID();
-        // Insert conversation
-        const { error: cErr } = await supabase
+        // We use a transaction-like approach by inserting conversation first
+        // If it fails, RLS or DB constraints will catch it
+        const { data: newConv, error: cErr } = await supabase
           .from("conversations")
           .insert({
-            id: newConvId,
             is_group: false,
             created_by: user.id
-          });
+          })
+          .select()
+          .single();
         
         if (cErr) throw cErr;
+        const newConvId = newConv.id;
 
-        // Insert participants
+        // Insert participants (self and the profile owner)
         const { error: pErr } = await supabase
           .from("conversation_participants")
           .insert([
@@ -125,8 +134,8 @@ export default function ProfilePage() {
           ]);
         
         if (pErr) {
-          // If adding participants fails, we might have an empty conversation.
-          // But RLS should prevent this if policies are correct.
+          // If adding participants fails, the conversation might be "orphaned"
+          // but RLS should ideally handle visibility.
           throw pErr;
         }
         convId = newConvId;
@@ -135,7 +144,11 @@ export default function ProfilePage() {
       navigate(`/chats/${convId}`);
     } catch (e: any) {
       console.error("Chat error:", e);
-      toast.error("فشل في فتح المحادثة. يرجى المحاولة مرة أخرى.");
+      toast.error(
+        dir === "rtl" 
+          ? "فشل فتح المحادثة. يرجى المحاولة لاحقاً." 
+          : "Failed to open conversation. Please try again later."
+      );
     } finally {
       setOpening(false);
     }
