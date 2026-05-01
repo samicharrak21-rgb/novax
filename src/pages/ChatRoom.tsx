@@ -38,6 +38,7 @@ export default function ChatRoom() {
   const [text, setText] = useState("");
   const [picker, setPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const Back = dir === "rtl" ? ChevronLeft : ArrowLeft;
@@ -104,7 +105,8 @@ export default function ChatRoom() {
   }, [q.data]);
 
   async function sendMessage(payload: { content?: string; attachment_url?: string; attachment_type?: string }) {
-    if (!user) return;
+    if (!user || !id) return false;
+    
     const row: any = { conversation_id: id, sender_id: user.id };
     if (payload.content) row.content = payload.content;
     if (payload.attachment_url) {
@@ -112,19 +114,24 @@ export default function ChatRoom() {
       row.attachment_type = payload.attachment_type || "image";
     }
     
-    const { error } = await supabase.from("messages").insert(row);
-    if (error) {
-      console.error("Send error:", error);
-      toast.error(dir === "rtl" ? "فشل إرسال الرسالة" : "Failed to send message");
-      return false;
+    setIsSending(true);
+    try {
+      const { error } = await supabase.from("messages").insert(row);
+      if (error) {
+        console.error("Send error:", error);
+        toast.error(dir === "rtl" ? "فشل إرسال الرسالة" : "Failed to send message");
+        return false;
+      }
+      return true;
+    } finally {
+      setIsSending(false);
     }
-    return true;
   }
 
   async function sendText(e: React.FormEvent) {
     e.preventDefault();
     const content = text.trim();
-    if (!content) return;
+    if (!content || isSending) return;
     
     setText("");
     const ok = await sendMessage({ content });
@@ -153,7 +160,7 @@ export default function ChatRoom() {
   const meta = metaQ.data;
   const headerName = meta?.is_group
     ? (meta.title || t("new_group"))
-    : (meta?.other?.display_name || meta?.other?.username || "");
+    : (meta?.other?.display_name || meta?.other?.username || t("loading"));
   const headerSub = meta?.is_group ? t("members") : meta?.other?.username ? `@${meta.other.username}` : "";
   const headerAvatar = meta?.is_group ? meta.avatar_url : meta?.other?.avatar_url;
 
@@ -161,6 +168,43 @@ export default function ChatRoom() {
     const s = meta?.is_group ? (meta.title || "G") : (meta?.other?.username || "?");
     return s[0]?.toUpperCase();
   }, [meta]);
+
+  if (metaQ.isLoading) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-3.5rem)] animate-pulse">
+        <header className="border-b border-border h-14 flex items-center px-2 gap-2 bg-background">
+          <div className="w-8 h-8 rounded-full bg-secondary" />
+          <div className="w-10 h-10 rounded-full bg-secondary" />
+          <div className="flex-1 space-y-1">
+            <div className="h-3 w-24 bg-secondary rounded" />
+            <div className="h-2 w-16 bg-secondary rounded" />
+          </div>
+        </header>
+        <div className="flex-1 p-3 space-y-4">
+          <div className="h-10 w-2/3 bg-secondary rounded-2xl" />
+          <div className="h-10 w-1/2 bg-secondary rounded-2xl ml-auto" />
+          <div className="h-20 w-3/4 bg-secondary rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!meta && !metaQ.isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-3.5rem)] p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+          <Users className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-lg font-bold mb-2">{t("no_results")}</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          {dir === "rtl" ? "تعذر العثور على هذه المحادثة أو ليس لديك صلاحية الوصول إليها." : "Conversation not found or access denied."}
+        </p>
+        <Button onClick={() => navigate("/chats")} variant="outline" className="rounded-full">
+          {dir === "rtl" ? "العودة للمحادثات" : "Back to Chats"}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
@@ -263,12 +307,16 @@ export default function ChatRoom() {
         />
         <Button
           type="submit"
-          disabled={!text.trim()}
+          disabled={!text.trim() || isSending}
           size="icon"
           className="rounded-full h-10 w-10 shrink-0"
           aria-label={t("send")}
         >
-          <Send className="h-4 w-4" />
+          {isSending ? (
+            <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
         </Button>
       </form>
     </div>

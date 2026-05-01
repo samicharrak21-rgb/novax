@@ -102,11 +102,10 @@ export default function ProfilePage() {
           .select("conversation_id")
           .eq("user_id", profile.id)
           .in("conversation_id", my1on1ConvIds)
-          .limit(1)
-          .maybeSingle();
+          .limit(1);
         
         if (sharedErr) throw sharedErr;
-        convId = shared?.conversation_id ?? null;
+        convId = (shared ?? [])[0]?.conversation_id ?? null;
       }
 
       // 3. Create a new conversation if none exists
