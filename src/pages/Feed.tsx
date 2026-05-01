@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,7 +10,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/I18nProvider";
-import { useInView } from "react-intersection-observer";
+
+// Custom hook to replace react-intersection-observer if it's missing during build
+function useIntersectionObserver(ref: React.RefObject<Element>, options: IntersectionObserverInit = {}) {
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    const obs = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), options);
+    obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [ref, options]);
+  return { inView };
+}
 
 async function fetchStories(): Promise<StoryItem[]> {
   const { data: rows, error } = await supabase
@@ -39,7 +50,9 @@ export default function Feed() {
   const { t } = useI18n();
   const [tab, setTab] = useState<"forYou" | "following">("forYou");
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const { ref, inView } = useInView();
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { inView } = useIntersectionObserver(scrollRef);
 
   const feedQ = useInfiniteQuery({
     queryKey: ["feed", tab, user?.id],
@@ -198,7 +211,7 @@ export default function Feed() {
       ))}
 
       {/* Infinite Scroll Loader */}
-      <div ref={ref} className="py-10 flex justify-center">
+      <div ref={scrollRef} className="py-10 flex justify-center">
         {feedQ.isFetchingNextPage ? (
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         ) : feedQ.hasNextPage ? (
